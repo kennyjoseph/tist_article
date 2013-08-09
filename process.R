@@ -6,24 +6,31 @@ require(RCurl)
 require(reshape)
 require(stringr)
 require(reshape2)
+require(ggplot2)
 
 ##Sample checkin data in the checkin_data.txt file:
 ##2011-08-07 00:27:45  31862406	4b9add62f964a52078dd35e3	Food::Mexican Restaurant	-74.032	40.6218	Trace
 ##2011-08-07 00:29:25	68818916	4a31831df964a520e9991fe3	Arts & Entertainment::Movie Theater::Multiplex	-74.0377	40.7269	AMC Loews Newport Centre 11
 
-source("initial_data_generation_functions.r")
-source("data_analysis_functions.r")
-
+##Set this to the directory this file is in
 home_dir <- ""
 data_dir <- paste0(home_dir,"/data/")
 
+source(paste0(home_dir,"initial_data_generation_functions.R"))
+source(paste0(home_dir,"data_analysis_functions.r"))
+
+#########################################DATA MANIPULATION############################
 queries <- get_queries(home_dir)
+##Need data to run this...
 checkin_data <- get_checkin_data(home_dir,"new_york")
 ##NOTE: This makes a bunch of calls to the census API
 venue_data <- get_nodes_data(home_dir, "new_york")
 returned_census_queries <- perform_census_queries(venue_data,queries)
 final_data <- get_census_data(venue_data,returned_q.ny,city,queries)
 
+
+
+#########################################RUN THE LDAS############################
 ##Note these are not the same as the paper because the paper implies <= and the java code only does <
 n_min_checkins_per_user <- c(2,5)
 n_min_checkins_per_venue <- c(2,5,10)
@@ -36,7 +43,6 @@ for(min_user in n_min_checkins_per_user){
 
     fil_names <- split_checkin_data(data_dir,fin[fin$City == "New York",],checkins.ny,"new_york",n_breaks,min_user,min_venue)
      
-    #############RUN THE LDAS################
     ntopics <- c(20,40,80)
     is_binary <- c(0,1)
     alpha <- c("0.6","20.0","50.0","100.0")
@@ -45,85 +51,88 @@ for(min_user in n_min_checkins_per_user){
     total_grid <- expand.grid(ntopics,cities,
                               fil_names,is_binary,
                               alpha,beta,stringsAsFactors=FALSE)
-    sfInit(parallel=TRUE, cpus=4)
-    sfExport("data_dir")
-    sfExport("jar_loc")
-    parApply(sfGetCluster(),total_grid,1,function(t){
+    apply(sfGetCluster(),total_grid,1,function(t){
       #print(paste("java","-jar",jar_loc,t[1],data_dir,as.character(t[2]),t[3],"venues.txt",t[4],t[5],t[6]))
       system(paste("java","-jar",jar_loc,t[1],data_dir,as.character(t[2]),t[3],"venues.txt",t[4],t[5],t[6]))
     })
   }
+  ##Now we have all the LDAs run, we need to transform the files into form for the NMI
+  ##Cut using beta
+  sfInit(parallel=TRUE,cpus=4)
+  cutoff_options = c(.005,.01)
+  to_run <- expand.grid(NTopics = ntopics, Binary=c("false","true"),
+                        Alpha=alpha,Beta=beta,
+                        Cutoff = cutoff_options,
+                        City = cities,
+                        MinUsers = n_min_checkins_per_user,
+                        MinVenues = n_min_checkins_per_venue,
+                        stringsAsFactors=FALSE)
+  
+  sfExport("n_breaks")
+  sfExport("data_dir")
+  sfLibrary(plyr)
+  sfLibrary(stringr)
+  output <-parApply(sfGetCluster(),to_run,1,function(fil){
+    frames <- lapply(seq(n_breaks),function(period){
+      f_name <- str_replace_all(paste0(data_dir,fil["City"],"/","topicWordWeights",fil["MinUsers"],"_",
+                                       fil["MinVenues"],"_",period,"_",fil["Binary"],"_",as.character(fil["NTopics"]),
+                                       "_",fil["Beta"],"_",fil["Alpha"],".txt")," ","")
+      print(f_name)
+      vens <- read.csv(f_name,sep="\t", header=FALSE)
+      x <- ddply(vens, .(V1), function(t){data.frame(normalized=t$V3/sum(t$V3))})
+      vens <- cbind(vens, x$normalized)[,c(1,2,4)]
+      names(vens) <- c("Topic","Venue","Likelihood")
+      vens <- vens[vens$Likelihood > as.numeric(fil["Cutoff"]),]
+      if(nrow(vens)>0){
+        vens$Period <-period
+      }
+      vens
+    })
+    data <- do.call(rbind,frames)
+    if(nrow(data)==0){
+      data.frame(m = "0",sd="0",nmi="0")
+    } else{
+      venues_to_ids <- data.frame(Venue = unique(data$Venue))
+      venues_to_ids$ID <- 1:nrow(venues_to_ids)
+      to_write <- ddply(data, .(Topic,Period), function(t){paste(merge(t,venues_to_ids)$ID,collapse=" ")})
+      tmp1 <- tempfile()
+      tmp2 <- tempfile()
+      write.table(to_write[to_write$Period==1,"V1"],tmp1,row.names=FALSE,col.names=FALSE,quote=FALSE)
+      write.table(to_write[to_write$Period==2,"V1"],tmp2,row.names=FALSE,col.names=FALSE,quote=FALSE)
+      
+      output <- system2(paste0(data_dir,"/mutual"),
+                        args=list(tmp1,tmp2),stdout=TRUE)
+      unlink(tmp1)
+      unlink(tmp2)
+      z <- ddply(data,.(Topic,Period),nrow)
+      d = data.frame(m = mean(z$V1),sd=sd(z$V1),nmi=as.numeric(str_split_fixed(output,"\t",2)[2]))
+      d
+    }
+  })
+  
+  new_out <- do.call(rbind,output)
+  final <- cbind(to_run,new_out)
+  write.csv(final,paste0(min_user,".csv"))
 }
 
-##Now we have all the LDAs run, we need to transform the files into form for the NMI
-##Cut using beta
-sfInit(parallel=TRUE,cpus=4)
-cutoff_options = c(.005,.01)
-to_run <- expand.grid(NTopics = ntopics, Binary=c("false","true"),
-                      Alpha=alpha,Beta=beta,
-                      Cutoff = cutoff_options,
-                      City = cities,
-                      MinUsers = n_min_checkins_per_user,
-                      MinVenues = n_min_checkins_per_venue,
-                      stringsAsFactors=FALSE)
 
-sfExport("n_breaks")
-sfExport("data_dir")
-sfLibrary(plyr)
-sfLibrary(stringr)
-output <-parApply(sfGetCluster(),to_run,1,function(fil){
-  frames <- lapply(seq(n_breaks),function(period){
-    f_name <- str_replace_all(paste0(data_dir,fil["City"],"/","topicWordWeights",fil["MinUsers"],"_",
-                                     fil["MinVenues"],"_",period,"_",fil["Binary"],"_",as.character(fil["NTopics"]),
-                                     "_",fil["Beta"],"_",fil["Alpha"],".txt")," ","")
-    print(f_name)
-    vens <- read.csv(f_name,sep="\t", header=FALSE)
-    x <- ddply(vens, .(V1), function(t){data.frame(normalized=t$V3/sum(t$V3))})
-    vens <- cbind(vens, x$normalized)[,c(1,2,4)]
-    names(vens) <- c("Topic","Venue","Likelihood")
-    vens <- vens[vens$Likelihood > as.numeric(fil["Cutoff"]),]
-    if(nrow(vens)>0){
-      vens$Period <-period
-    }
-    vens
-  })
-  data <- do.call(rbind,frames)
-  if(nrow(data)==0){
-    data.frame(m = "0",sd="0",nmi="0")
-  } else{
-    venues_to_ids <- data.frame(Venue = unique(data$Venue))
-    venues_to_ids$ID <- 1:nrow(venues_to_ids)
-    to_write <- ddply(data, .(Topic,Period), function(t){paste(merge(t,venues_to_ids)$ID,collapse=" ")})
-    tmp1 <- tempfile()
-    tmp2 <- tempfile()
-    write.table(to_write[to_write$Period==1,"V1"],tmp1,row.names=FALSE,col.names=FALSE,quote=FALSE)
-    write.table(to_write[to_write$Period==2,"V1"],tmp2,row.names=FALSE,col.names=FALSE,quote=FALSE)
-    
-    output <- system2(paste0(data_dir,"/mutual"),
-                      args=list(tmp1,tmp2),stdout=TRUE)
-    unlink(tmp1)
-    unlink(tmp2)
-    z <- ddply(data,.(Topic,Period),nrow)
-    d = data.frame(m = mean(z$V1),sd=sd(z$V1),nmi=as.numeric(str_split_fixed(output,"\t",2)[2]))
-    d
-  }
-})
 
-new_out <- do.call(rbind,output)
-final <- cbind(to_run,new_out)
-write.csv(final,paste0(min_user,".csv"))
+###This combines the output from the code above- we actually ran three replications, but because they were 
+## on different machines the code does not show this (I just manually renamed the files)
+# f <- rbind(read.csv("final_2_1.csv"),read.csv("final_5_1.csv"))
+# f$Rep <- 1
+# f2 <- rbind(read.csv("final_2_2.csv"),read.csv("final_5_2.csv"))
+# f2$Rep <- 2
+# f3 <- rbind(read.csv("final_2_3.csv"),read.csv("final_5_3.csv"))
+# f3$Rep <- 3
+# f <- rbind(f,f2,f3)
 
-##These are the final outputs of the LDA experiments
+#########################################ANALYSIS############################
+##The final output of the lda experiments are in lda_experiment.csv
+f <- read.csv(paste0(home_dir,"lda_experiment.csv"))
+
 ##We remove the data where mean (m) is less than ten, and the 
 #binary output, because our analysis showed these were not interesting.
-f <- rbind(read.csv("final_2_1.csv"),read.csv("final_5_1.csv"))
-head(f)
-f$Rep <- 1
-f2 <- rbind(read.csv("final_2_2.csv"),read.csv("final_5_2.csv"))
-f2$Rep <- 2
-f3 <- rbind(read.csv("final_2_3.csv"),read.csv("final_5_3.csv"))
-f3$Rep <- 3
-f <- rbind(f,f2,f3)
 f <- f[f$m > 10 & f$Binary=="true",]
 
 

@@ -20,8 +20,8 @@ If you use [1] or [2], please also cite the related articles (found at the websi
 This is in addition to all of the amazing libraries used in Java, Python and R 
 and the use of the census API to pull down the demographic data.
 
-The code is unfortunately not explicitly runnable, both because I can't give away the data
-and because I used way too many relative paths that I haven't yet cleaned up nicely. 
+The code is unfortunately not explicitly runnable because I can't give away the data
+and, possibly, because I used way too many absolute paths and I might have made a mistake cleaning them up . 
  Apologies in advance, but I've done some work to make the code more readable. 
  If you actually want to use pieces, shoot me an email and I can clarify.
 
@@ -39,8 +39,11 @@ The process used by paper was as follows:
 3. There is a comment in process.R at the point at which bootstrap.py was run to generate the
 bootstrapped CIs
 
-The files files_A_B.csv are the results of the experiment run to determine which parameterization
-of LDA to use, where "A" stands for the value of minUser and "B" is the replication number.
+The LDAs are run using a little Java program that interfaces with the MALLET toolkit.  I've provided the jar 
+that's used in process.R as well as the source code.
+
+The file lda_experiment.csv holds the results of the experiment run to determine which parameterization
+of LDA to use
 
 The file topicWordWeights5_5_1_true_20_0.01_0.6_5.txt holds the output of the LDA used in the 
 analysis in the article.
