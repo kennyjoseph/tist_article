@@ -5,10 +5,15 @@ foursquare check-ins from New York City. ACM Trans. Intell. Sys. and Tech. (2013
 Please refer to this article if you use the code.
 
 However, please note that code was adopted from the following sources:
-[1] MALLET tutorial: http://mallet.cs.umass.edu/import-devel.php
-[2] Normalized Mutual Information code: https://sites.google.com/site/andrealancichinetti/mutual
-[3] Haversine distance: https://github.com/johnmetta/adcp/blob/master/src/gislib.py
-[4] Walker random sampling class: https://gist.github.com/ntamas
+
+1. MALLET tutorial: http://mallet.cs.umass.edu/import-devel.php
+
+2. Normalized Mutual Information code: https://sites.google.com/site/andrealancichinetti/mutual
+
+3. Haversine distance: https://github.com/johnmetta/adcp/blob/master/src/gislib.py
+
+4. Walker random sampling class: https://gist.github.com/ntamas
+
 If you use [1] or [2], please also cite the related articles (found at the websites listed)
 
 This is in addition to all of the amazing libraries used in Java, Python and R 
@@ -20,6 +25,7 @@ and because I used way too many relative paths that I haven't yet cleaned up nic
  If you actually want to use pieces, shoot me an email and I can clarify.
 
 The process used by paper was as follows:
+
 1. Pull the data out of the mysql database where it was stored. Check-in data is then in the form
 2011-08-07 00:27:45  31862406	4b9add62f964a52078dd35e3	Food::Mexican Restaurant	-74.032	40.6218	Trace
 
