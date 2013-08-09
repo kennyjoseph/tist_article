@@ -1,0 +1,11 @@
+B01003.  Total Population
+B02001.  Race
+B03003.  Hispanic or Latino Origin
+B08013.  Aggregate Travel Time To Work (in Minutes) Of Workers By Sex
+B08301.  Means of Transportation to Work
+B08303.  Travel Time to Work
+B25024.  Units in Structure
+B19313.  Aggregate Income
+B19301.  Per Capita Income
+B19013.  Median Household Income
+B19083.  Gini Index Of Income Inequality
