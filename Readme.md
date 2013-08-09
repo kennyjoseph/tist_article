@@ -1,4 +1,5 @@
 This is a trimmed, more readable version of the analysis code used in the article: 
+
 Joseph, K., Carley, K.M., Hong, J.I. 2013. Check-ins in “Blau space”: Applying Blau’s macrosociological theory to
 foursquare check-ins from New York City. ACM Trans. Intell. Sys. and Tech. (2013)
 
