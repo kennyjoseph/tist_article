@@ -98,13 +98,13 @@ produceLDA <- function(t,checkins,fin,remove_tourist=FALSE){
 
 write_final_lda <- function(file,checkins_file,output_file,fin){
   
-  vens <- read.csv(paste0(data_dir,file),sep="\t", header=FALSE)
+  vens <- read.csv(file,sep="\t", header=FALSE)
   x <- ddply(vens, .(V1), function(t){data.frame(normalized=t$V3/sum(t$V3))})
   vens <- cbind(vens, x$normalized)[,c(1,2,4)]
   names(vens) <- c("Topic","Venue","Likelihood")
   vens <- vens[vens$Likelihood > .005,]
   
-  checkins <- read.csv(paste0(data_dir,checkins_file))
+  checkins <- read.csv(checkins_file)
   
   ##Write Venues file
   
@@ -126,7 +126,7 @@ write_final_lda <- function(file,checkins_file,output_file,fin){
   ##Merge in data from new timings with old data
   final.venue.data <- fin[,-(68:236)]
   final.venue.data <- merge(final.venue.data,new_times,by="Venue",all.x=F,all.y=T)
-  write.csv(final.venue.data, paste0(data_dir,output_file))
+  #write.csv(final.venue.data, output_file)
             
 ##Here, provide final topic data  
   final.topic.data <- merge(vens, final.venue.data, by="Venue")
