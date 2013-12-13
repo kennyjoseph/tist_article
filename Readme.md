@@ -28,7 +28,9 @@ and, possibly, because I used way too many absolute paths and I might have made 
 The process used by paper was as follows:
 
 1. Pull the data out of the mysql database where it was stored. Check-in data is then in the form
+```
 2011-08-07 00:27:45  31862406	4b9add62f964a52078dd35e3	Food::Mexican Restaurant	-74.032	40.6218	Trace
+```
 
 2. Run "process.R", which did the following:
 -generated cleaned check-in files and a file that included demographic information for all of the venues 
