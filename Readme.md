@@ -1,7 +1,14 @@
 This is a trimmed, more readable version of the analysis code used in the article: 
 
-Joseph, K., Carley, K.M., Hong, J.I. 2013. Check-ins in “Blau space”: Applying Blau’s macrosociological theory to
-foursquare check-ins from New York City. ACM Trans. Intell. Sys. and Tech. (2013)
+```
+@article{josephcheck,
+  title={Check-ins in “Blau space”: Applying Blau’s macrosociological theory to foursquare check-ins from New York City},
+  author={Joseph, K. and Carley, Kathleen M. and Hong, Jason I.}
+   journal={ACM Transactions on Intelligent Systems and Technology (TIST)},
+  year={2014}
+}
+```
+
 
 Please refer to this article if you use the code.
 
